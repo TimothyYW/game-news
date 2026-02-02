@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <link rel ="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+
+    <!-- Responsive -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- === SEO Dynamic === -->
+    <title>{% block title %}{{ title|default:"Web Game News" }}{% endblock %}</title>
+    <meta name="description" content="{% block description %}{{ description|default:"Latest news, guides and reviews on web games." }}{% endblock %}">
+    <meta name="keywords" content="{% block keywords %}{{ keywords|default:"web games, game news, reviews, guides" }}{% endblock %}">
+
+    <!-- Canonical (SEO Anti-Duplicate) -->
+    <link rel="canonical" href="{{ request.build_absolute_uri }}">
+
+    <!-- === Open Graph (Facebook / WhatsApp / Discord) === -->
+    <meta property="og:title" content="{% block og_title %}{{ title|default:"Web Game News" }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ description|default:"Latest news, guides and reviews on web games." }}{% endblock %}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    {% block og_image %}
+    <meta property="og:image" content="{{ og_image|default_if_none:'/static/default-og.jpg' }}">
+    {% endblock %}
+
+    <!-- === Twitter Cards === -->
+    <meta name="twitter:card" content="summary_large_image">
+    {% block twitter_title %}
+    <meta name="twitter:title" content="{{ title|default:'Web Game News' }}">
+    {% endblock %}
+    {% block twitter_description %}
+    <meta name="twitter:description" content="{{ description|default:'Latest news, guides and reviews on web games.' }}">
+    {% endblock %}
+    {% block twitter_image %}
+    <meta name="twitter:image" content="{{ og_image|default_if_none:'/static/default-og.jpg' }}">
+    {% endblock %}
+
+    <!-- Structured Data (schema.org) -->
+    {% block schema %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "{{ title|default:'Web Game News' }}",
+      "url": "{{ request.build_absolute_uri }}"
+    }
+    </script>
+    {% endblock %}
+
+    <!-- Tailwind (compiled by django-tailwind-cli) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --color-clifford: #da373d;
+      }
+    </style>
+</head>
+
+<body class="bg-white text-gray-900">
+    {% if not hide_navbar %}
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 w-full px-4 py-3">
+    <div class="max-w-5xl mx-auto">
+      <div class="bg-white/80 backdrop-blur-md border border-gray-100 shadow-sm rounded-2xl px-6 py-3 flex items-center justify-between transition-all duration-300 hover:shadow-md">
+        
+        <a href="{% url 'news_list' %}" 
+          class="font-extrabold text-orange-600 text-xl tracking-tight hover:scale-105 transition-transform duration-200">
+          MyNews
+        </a>
+
+        <div class="flex items-center gap-6">
+          <span class="hidden sm:block text-xs font-medium text-gray-400 uppercase tracking-widest">Feed</span>
+          
+          <a href="{% url 'news_create' %}"
+            class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-200/50 transition-all active:scale-95 flex items-center gap-1">
+            <span class="text-lg leading-none">+</span> 
+            <span>Create</span>
+          </a>
+        </div>
+        
+      </div>
+    </div>
+  </nav>
+  {% endif %}
+   <main class="max-w-5xl mx-auto px-4 py-6">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
