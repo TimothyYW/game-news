@@ -4,7 +4,9 @@ from .models import News
 from .forms import NewsForm
 from core.supabase import get_supabase_client
 from datetime import datetime
+from accounts.decorator import supabase_auth_required
 
+@supabase_auth_required
 def news_list(request):
     res = get_supabase_client().table('news').select('*').order('created_at', desc=True).execute()
     news = res.data or []
