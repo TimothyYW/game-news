@@ -52,41 +52,119 @@
 
     <!-- Tailwind (compiled by django-tailwind-cli) -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style type="text/tailwindcss">
       @theme {
         --color-clifford: #da373d;
+      }
+    </style>
+
+    <style>
+      #editor.ql-editor,
+      #editor .ql-editor {
+          padding: 16px 0px !important;
       }
     </style>
 </head>
 
 <body class="bg-white text-gray-900">
     {% if not hide_navbar %}
-  <!-- Navbar -->
-  <nav class="sticky top-0 z-50 w-full px-4 py-3">
-    <div class="max-w-5xl mx-auto">
-      <div class="bg-white/80 backdrop-blur-md border border-gray-100 shadow-sm rounded-2xl px-6 py-3 flex items-center justify-between transition-all duration-300 hover:shadow-md">
-        
-        <a href="{% url 'news_list' %}" 
-          class="font-extrabold text-orange-600 text-xl tracking-tight hover:scale-105 transition-transform duration-200">
-          MyNews
-        </a>
-
-        <div class="flex items-center gap-6">
-          <span class="hidden sm:block text-xs font-medium text-gray-400 uppercase tracking-widest">Feed</span>
-          
-          <a href="{% url 'news_create' %}"
-            class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-200/50 transition-all active:scale-95 flex items-center gap-1">
-            <span class="text-lg leading-none">+</span> 
-            <span>Create</span>
-          </a>
+   <nav class="fixed top-0 z-50 w-full bg-white border-b border-gray-200 h-12 flex items-center px-4 justify-between">
+        <!-- Logo Area -->
+        <div class="flex items-center gap-2 lg:w-[260px]">
+            <button class="lg:hidden text-2xl mr-2 text-gray-700">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <a href="#" class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-[#FF4500] rounded-full flex items-center justify-center text-white text-xl">
+                    <i class="fa-brands fa-reddit-alien"></i>
+                </div>
+                <span class="hidden lg:block text-2xl font-bold tracking-tight">reddit</span>
+            </a>
         </div>
-        
-      </div>
-    </div>
-  </nav>
+
+        <!-- Search Bar (Desktop) -->
+        <div class="hidden md:flex flex-grow max-w-[600px] mx-4">
+            <div class="relative w-full group">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400 text-lg">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <input type="text" 
+                       class="search-input block w-full p-2 pl-10 text-sm text-gray-900 border border-transparent rounded-full bg-gray-100 hover:bg-white hover:border-blue-500 focus:bg-white placeholder-gray-500 transition-colors" 
+                       placeholder="Search Reddit">
+            </div>
+        </div>
+
+        <!-- Right Actions -->
+        <div class="flex items-center gap-2 lg:w-[260px] justify-end">
+            <!-- Mobile Search Icon -->
+            <button class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+            
+            
+             {% if is_authenticated %}
+            <!-- Show User Info -->
+            <div class="flex items-center gap-3">
+                <a href="{% url 'logout' %}"
+                  class="px-4 py-1.5 font-bold text-white bg-gray-800 rounded-full text-sm">
+                    Logout
+                </a>
+            </div>
+            <div class="relative">
+              <button id="user-menu-button" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700">
+                  <i class="fa-solid fa-user"></i>
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-[60] py-1">
+                  <div class="px-4 py-2 border-b border-gray-100">
+                      <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">My Account</p>
+                      <p class="text-xs text-gray-900 truncate font-medium"> {{ user_email }}</p>
+                  </div>
+                  <button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                      <i class="fa-solid fa-circle-user text-gray-400"></i> Profile
+                  </button>
+                  <button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                      <i class="fa-solid fa-gear text-gray-400"></i> Settings
+                  </button>
+                  <div class="border-t border-gray-100 my-1"></div>
+                  <a href="{% url 'logout' %}" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2">
+                      <i class="fa-solid fa-right-from-bracket"></i> Log Out
+                  </a>
+              </div>
+            </div>
+            {% else %}
+            <!-- Show Login Button -->
+            <a href="{% url 'login' %}"
+              class="px-5 py-1.5 font-bold text-white bg-[#D93A00] rounded-full hover:bg-[#FF4500] transition-colors text-sm">
+                Log In
+            </a>
+            <button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700">
+                  <i class="fa-solid fa-user"></i>
+            </button>
+            {% endif %}
+            
+            
+        </div>
+    </nav>
   {% endif %}
-   <main class="max-w-5xl mx-auto px-4 py-6">
+   <main class="w-full lg:w-5xl px-0 md:px-4 py-4 md:py-6 mx-auto px-4 py-6 mt-[58px]">
     {% block content %}{% endblock %}
   </main>
+
+  <script>
+      const userMenuBtn = document.getElementById('user-menu-button');
+      const userDropdown = document.getElementById('user-dropdown');
+
+      userMenuBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          userDropdown.classList.toggle('hidden');
+      });
+
+      document.addEventListener('click', () => {
+          userDropdown.classList.add('hidden');
+      });
+  </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
+{% extends "base.html" %}
 
- {% extends "base.html" %} {% block content %}
+{% block content %}
 <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
-
 <div class="max-w-3xl mx-auto px-4 py-10">
   <nav class="mb-6">
     <a href="{% url 'news_list' %}" class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-orange-500 transition-colors">
@@ -17,10 +17,19 @@
                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       </div>
-      <h1 class="text-2xl font-black text-gray-900 tracking-tight">Create a Post</h1>
+      <h1 class="text-2xl font-black text-gray-900 tracking-tight">Update a Post</h1>
     </div>
 
-    <form method="post" class="space-y-8">
+    {# --- Non-field errors --- #}
+    {% if form.non_field_errors %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl">
+      {% for error in form.non_field_errors %}
+        <p class="text-red-500 text-sm font-bold">{{ error }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-8">
       {% csrf_token %}
 
       <!-- Title -->
@@ -39,13 +48,41 @@
         <label class="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500 ml-1">
           Post Content
         </label>
+        {% if form.content.errors %}
+          <p class="text-red-500 text-xs font-bold mt-1">{{ form.content.errors.0 }}</p>
+        {% endif %}
 
-        <div class="rounded-2xl overflow-hidden border border-gray-100 transition-all">
+        <div class="rounded-2xl overflow-hidden border border-gray-100 focus-within:border-orange-300 focus-within:ring-4 focus-within:ring-orange-50 transition-all">
           <div id="editor" class="bg-white min-h-[200px] p-4"></div>
         </div>
 
-        <!-- Hidden input that Django will read -->
-        <input type="hidden" name="content" id="content">
+        {{ form.content }}  {# renders hidden input #}
+      </div>
+
+      <!-- Image Upload -->
+      <div class="space-y-2">
+        <label class="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-500 ml-1">
+          Image <span class="font-normal normal-case tracking-normal text-gray-300">(optional)</span>
+        </label>
+
+        <label for="{{ form.image.id_for_label }}"
+               class="flex items-center gap-3 w-full cursor-pointer bg-gray-50 border border-gray-100 border-dashed rounded-2xl px-5 py-4 hover:bg-orange-50 hover:border-orange-200 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span class="text-sm text-gray-400 font-medium" id="image-label">Click to attach an image</span>
+          {{ form.image }}
+        </label>
+
+        <!-- Preview -->
+        <div id="image-preview" class="hidden mt-3 relative w-full max-h-[300px] rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+          <img id="preview-img" class="object-cover w-full max-h-[300px]">
+          <button type="button" id="btn-remove-image"
+                  class="absolute top-2 right-2 bg-black/50 hover:bg-black text-white rounded-full w-6 h-6 text-xs flex items-center justify-center transition-colors">
+            ✕
+          </button>
+        </div>
       </div>
 
       <!-- Actions -->
@@ -55,7 +92,7 @@
           Discard
         </a>
         <button type="submit"
-          class="px-8 py-3 rounded-xl text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:scale-95">
+                class="px-8 py-3 rounded-xl text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-200 transition-all hover:-translate-y-0.5 active:scale-95">
           Publish Post
         </button>
       </div>
@@ -63,16 +100,65 @@
   </div>
 </div>
 
-<!-- Quill JS -->
-<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<!-- Quill -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
 <script>
-  const quill = new Quill('#editor', {
-    theme: 'snow'
+  // --- Quill ---
+  const quill = new Quill("#editor", {
+    theme: "snow",
+    placeholder: "Share your thoughts, news, or story...",
+    modules: {
+      toolbar: [
+        ["bold", "italic", "underline"],
+        [{ list: "ordered" }, { list: "bullet" }],
+        ["link", "image"],
+        ["clean"],
+      ]
+    }
   });
 
-  const form = document.querySelector("form");
-  form.addEventListener("submit", function () {
+  // ✅ Pre-fill Quill from hidden input value (handles both create and edit)
+  const existingContent = document.getElementById("content").value;
+  if (existingContent) {
+    quill.root.innerHTML = existingContent;
+  }
+
+
+  // Sync Quill → hidden input before submit
+  document.querySelector("form").addEventListener("submit", function () {
     document.getElementById("content").value = quill.root.innerHTML;
+  });
+
+  // --- Image preview ---
+  const imageInput  = document.getElementById("{{ form.image.id_for_label }}");
+  const preview     = document.getElementById("image-preview");
+  const previewImg  = document.getElementById("preview-img");
+  const imageLabel  = document.getElementById("image-label");
+  const btnRemove   = document.getElementById("btn-remove-image");
+
+  imageInput.classList.add("hidden"); // hide default input, label acts as trigger
+
+  imageInput.addEventListener("change", function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    imageLabel.textContent = file.name;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+      preview.classList.remove("hidden");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  btnRemove.addEventListener("click", () => {
+    imageInput.value  = "";
+    previewImg.src    = "";
+    imageLabel.textContent = "Click to attach an image";
+    preview.classList.add("hidden");
   });
 </script>
 {% endblock %}

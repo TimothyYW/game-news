@@ -1,20 +1,37 @@
 from django.db import models
-from ckeditor.fields import RichTextField
 
-# Create your models here.
+
 class News(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False)  # no default here!
-    title = models.TextField()
-    content = RichTextField()  # rich text editor here
+    id         = models.UUIDField(primary_key=True, editable=False)
+    author_id  = models.UUIDField()
+    title      = models.TextField()
+    content    = models.TextField()
+    image_url  = models.TextField(null=True, blank=True)
+    votes      = models.IntegerField(default=0)
+    views      = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "news"   # important: match Supabase table name
-        managed = False     # Django will NOT try to create/alter this table
+        db_table = "news"
+        managed  = False
+        ordering = ["-created_at"]
 
     def __str__(self):
         return self.title
 
 
-   
+class Profile(models.Model):
+    id         = models.UUIDField(primary_key=True, editable=False)
+    username   = models.TextField()
+    avatar_url = models.TextField(null=True, blank=True)
+    bio        = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "profiles"
+        managed  = False
+
+    def __str__(self):
+        return self.username

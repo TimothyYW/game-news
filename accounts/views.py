@@ -139,3 +139,8 @@ def register_view(request):
         "title": "Register - Web Game News",
         "description": "Register to access member-only content on Web Game News.",
     })
+    
+    
+def logout_view(request):
+    request.session.flush()
+    return redirect("login")
