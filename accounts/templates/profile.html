@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.username }} - Profile{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl border border-gray-200 p-8 mb-6">
+        <div class="flex items-start gap-6">
+            
+            <div class="relative">
+                {% if profile.avatar_url %}
+                    <img src="{{ profile.avatar_url }}" 
+                         class="w-24 h-24 rounded-full object-cover border-4 border-orange-100">
+                {% else %}
+                    <div class="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center border-4 border-orange-200">
+                        <span class="text-3xl font-bold text-orange-600">
+                            {{ profile.username|slice:":1"|upper }}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="flex-1">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h1 class="text-2xl font-black text-gray-900">{{ profile.username }}</h1>
+                        <p class="text-sm text-gray-400">u/{{ profile.username }}</p>
+                    </div>
+                    <a href="{% url 'settings' %}" 
+                       class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-bold transition-colors">
+                        Edit Profile
+                    </a>
+                </div>
+
+                {% if profile.bio %}
+                <p class="text-gray-600 mb-4">{{ profile.bio }}</p>
+                {% endif %}
+
+                <div class="flex items-center gap-6 text-sm">
+                    <div>
+                        <span class="font-bold text-gray-900">{{ posts_count }}</span>
+                        <span class="text-gray-500">posts</span>
+                    </div>
+                    <div>
+                        <span class="font-bold text-gray-900">{{ profile.created_at|date:"M Y" }}</span>
+                        <span class="text-gray-500">joined</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+        <h2 class="text-lg font-black text-gray-900 mb-4">Recent Posts</h2>
+        
+        {% if recent_posts %}
+        <div class="space-y-3">
+            {% for post in recent_posts %}
+            <a href="{% url 'news_detail' post.id %}" 
+               class="block p-4 hover:bg-gray-50 rounded-xl transition-colors border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-900 mb-1">{{ post.title }}</h3>
+                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                            <span><i class="fa-solid fa-arrow-up text-orange-500"></i> {{ post.votes|default:0 }}</span>
+                            <span>{{ post.created_at|timesince }} ago</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-300"></i>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12 text-gray-400">
+            <i class="fa-regular fa-newspaper text-4xl mb-3"></i>
+            <p>No posts yet</p>
+        </div>
+        {% endif %}
+
+        {% if posts_count > 5 %}
+        <a href="{% url 'news_list' %}?author={{ user_id }}" 
+           class="block mt-4 text-center text-sm font-bold text-orange-500 hover:text-orange-600">
+            View all posts →
+        </a>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

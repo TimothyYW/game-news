@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from ratelimit import limits, sleep_and_retry
+from .decorator import supabase_auth_required
 
 from core.supabase import get_supabase_client
 
@@ -144,3 +145,93 @@ def register_view(request):
 def logout_view(request):
     request.session.flush()
     return redirect("login")
+
+@supabase_auth_required
+def profile_view(request):
+    user_id      = request.session.get("supabase_user_id")
+    client       = get_supabase_client()
+
+    profile_res = client.table("profiles").select("*").eq("id", user_id).single().execute()
+    profile = profile_res.data
+
+    posts_res = client.table("news").select("*", count="exact", head=True).eq("author_id", user_id).execute()
+    posts_count = posts_res.count or 0
+
+    recent_posts_res = (
+        client.table("news")
+        .select("id, title, votes, created_at")
+        .eq("author_id", user_id)
+        .order("created_at", desc=True)
+        .limit(5)
+        .execute()
+    )
+
+    recent_posts = []
+    for post in (recent_posts_res.data or []):
+        if post.get("created_at"):
+            post["created_at"] = datetime.fromisoformat(post["created_at"].replace("Z", "+00:00"))
+        recent_posts.append(post)
+
+    if profile.get("created_at"):
+        profile["created_at"] = datetime.fromisoformat(profile["created_at"].replace("Z", "+00:00"))
+
+    return render(request, "profile.html", {
+        "title": "Profile",
+        "profile": profile,
+        "posts_count": posts_count,
+        "recent_posts": recent_posts,
+    })
+
+
+@supabase_auth_required
+def settings_view(request):
+    user_id      = request.session.get("supabase_user_id")
+    client       = get_supabase_client()
+
+    profile_res = client.table("profiles").select("*").eq("id", user_id).single().execute()
+    profile = profile_res.data
+
+    if request.method == "POST":
+        username   = (request.POST.get("username") or "").strip()
+        bio        = (request.POST.get("bio") or "").strip()
+        avatar     = request.FILES.get("avatar")
+
+        if not username:
+            messages.error(request, "Username is required")
+            return redirect("settings")
+
+        avatar_url = profile.get("avatar_url")
+        if avatar:
+            file_ext  = avatar.name.rsplit(".", 1)[-1].lower()
+            file_name = f"avatars/{user_id}.{file_ext}"
+            try:
+                client.storage.from_("news_bucket").upload(
+                    file_name,
+                    avatar.read(),
+                    {"content-type": avatar.content_type, "upsert": "true"},
+                )
+                avatar_url = client.storage.from_("news_bucket").get_public_url(file_name)
+            except Exception as e:
+                messages.error(request, f"Avatar upload failed: {str(e)}")
+                return redirect("settings")
+
+        try:
+            client.table("profiles").update({
+                "username":   username,
+                "bio":        bio,
+                "avatar_url": avatar_url,
+            }).eq("id", user_id).execute()
+
+            request.session["supabase_username"] = username
+
+            messages.success(request, "Settings saved successfully")
+            return redirect("settings")
+
+        except Exception as e:
+            messages.error(request, f"Update failed: {str(e)}")
+            return redirect("settings")
+
+    return render(request, "settings.html", {
+        "title": "Settings",
+        "profile": profile,
+    })

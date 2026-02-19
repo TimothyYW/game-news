@@ -104,38 +104,60 @@
             
             
              {% if is_authenticated %}
-            <!-- Show User Info -->
             <div class="flex items-center gap-3">
                 <a href="{% url 'logout' %}"
                   class="px-4 py-1.5 font-bold text-white bg-gray-800 rounded-full text-sm">
                     Logout
                 </a>
             </div>
-            <div class="relative">
-              <button id="user-menu-button" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700">
-                  <i class="fa-solid fa-user"></i>
-              </button>
-              
-              <!-- Dropdown Menu -->
-              <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-[60] py-1">
-                  <div class="px-4 py-2 border-b border-gray-100">
-                      <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">My Account</p>
-                      <p class="text-xs text-gray-900 truncate font-medium"> {{ user_email }}</p>
-                  </div>
-                  <button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                      <i class="fa-solid fa-circle-user text-gray-400"></i> Profile
-                  </button>
-                  <button class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
-                      <i class="fa-solid fa-gear text-gray-400"></i> Settings
-                  </button>
-                  <div class="border-t border-gray-100 my-1"></div>
-                  <a href="{% url 'logout' %}" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2">
-                      <i class="fa-solid fa-right-from-bracket"></i> Log Out
-                  </a>
-              </div>
+            <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open" 
+                        class="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-xl transition-colors">
+                    {% if profile.avatar_url %}
+                        <img src="{{ profile.avatar_url }}" class="w-8 h-8 rounded-full object-cover">
+                    {% else %}
+                        <div class="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                            <span class="text-xs font-bold text-orange-600">
+                                {{ user_email|slice:":1"|upper }}
+                            </span>
+                        </div>
+                    {% endif %}
+                    <i class="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+                </button>
+
+                <div x-show="open" 
+                    @click.away="open = false"
+                    x-transition
+                    class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50">
+                    
+                    <div class="px-4 py-3 border-b border-gray-100">
+                        <p class="text-xs font-bold text-gray-400 uppercase">My Account</p>
+                        <p class="text-sm font-bold text-gray-900">{{ user_email }}</p>
+                    </div>
+
+                    <a href="{% url 'profile' %}" 
+                    class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700">
+                        <i class="fa-regular fa-user w-5"></i>
+                        <span class="font-medium">Profile</span>
+                    </a>
+
+                    <a href="{% url 'settings' %}" 
+                    class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-gray-700">
+                        <i class="fa-solid fa-gear w-5"></i>
+                        <span class="font-medium">Settings</span>
+                    </a>
+
+                    <div class="border-t border-gray-100 mt-2 pt-2">
+                        <a href="{% url 'logout' %}" 
+                        class="flex items-center gap-3 px-4 py-2 hover:bg-red-50 text-red-600">
+                            <i class="fa-solid fa-arrow-right-from-bracket w-5"></i>
+                            <span class="font-medium">Log Out</span>
+                        </a>
+                    </div>
+                </div>
             </div>
+
             {% else %}
-            <!-- Show Login Button -->
             <a href="{% url 'login' %}"
               class="px-5 py-1.5 font-bold text-white bg-[#D93A00] rounded-full hover:bg-[#FF4500] transition-colors text-sm">
                 Log In
@@ -152,7 +174,7 @@
    <main class="w-full lg:w-5xl px-0 md:px-4 py-4 md:py-6 mx-auto px-4 py-6 mt-[58px]">
     {% block content %}{% endblock %}
   </main>
-
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script>
       const userMenuBtn = document.getElementById('user-menu-button');
       const userDropdown = document.getElementById('user-dropdown');

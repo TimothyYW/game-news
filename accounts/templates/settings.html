@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+    <div class="mb-8">
+        <h1 class="text-2xl font-black text-gray-900">Settings</h1>
+        <p class="text-gray-500">Manage your account settings and preferences</p>
+    </div>
+
+    {% if messages %}
+    <div class="mb-6">
+        {% for message in messages %}
+        <div class="p-4 rounded-xl {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700{% else %}bg-red-50 border border-red-200 text-red-700{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-2xl border border-gray-200 p-8">
+        
+        <form method="POST" enctype="multipart/form-data" class="space-y-8">
+            {% csrf_token %}
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-3">Profile Picture</label>
+                
+                <div class="flex items-center gap-6">
+                    <div id="avatar-preview" class="relative">
+                        {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" 
+                                 id="avatar-img"
+                                 class="w-20 h-20 rounded-full object-cover border-2 border-gray-200">
+                        {% else %}
+                            <div id="avatar-placeholder" class="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center border-2 border-orange-200">
+                                <span class="text-2xl font-bold text-orange-600">
+                                    {{ profile.username|slice:":1"|upper }}
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <input type="file" name="avatar" id="avatar-input" accept="image/*" class="hidden">
+                        <label for="avatar-input" 
+                               class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-sm font-bold transition-colors">
+                            <i class="fa-solid fa-camera"></i>
+                            Change Avatar
+                        </label>
+                        <p class="text-xs text-gray-400 mt-2">JPG, PNG or GIF. Max 2MB.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label for="username" class="block text-sm font-bold text-gray-700 mb-2">
+                    Username
+                </label>
+                <input type="text" 
+                       name="username" 
+                       id="username" 
+                       value="{{ profile.username }}"
+                       required
+                       class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-50 transition-all">
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">
+                    Email
+                </label>
+                <input type="email" 
+                       value="{{ user_email }}"
+                       disabled
+                       class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed">
+                <p class="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+            </div>
+
+            <div>
+                <label for="bio" class="block text-sm font-bold text-gray-700 mb-2">
+                    Bio
+                </label>
+                <textarea name="bio" 
+                          id="bio" 
+                          rows="4"
+                          placeholder="Tell us about yourself..."
+                          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-300 focus:ring-4 focus:ring-orange-50 transition-all resize-none">{{ profile.bio|default:"" }}</textarea>
+            </div>
+
+            <div class="flex items-center justify-between pt-6 border-t border-gray-100">
+                <a href="{% url 'profile' %}" 
+                   class="text-gray-500 hover:text-gray-700 font-bold text-sm">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+
+    </div>
+
+    <div class="mt-8 bg-red-50 rounded-2xl border border-red-200 p-6">
+        <h3 class="text-sm font-bold text-red-700 mb-2">Danger Zone</h3>
+        <p class="text-sm text-red-600 mb-4">Once you delete your account, there is no going back.</p>
+        <button class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-colors"
+                onclick="alert('This feature is not yet implemented')">
+            Delete Account
+        </button>
+    </div>
+
+</div>
+
+<script>
+    const avatarInput = document.getElementById('avatar-input');
+    const avatarImg = document.getElementById('avatar-img');
+    const avatarPlaceholder = document.getElementById('avatar-placeholder');
+
+    avatarInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (avatarImg) {
+                avatarImg.src = e.target.result;
+            } else if (avatarPlaceholder) {
+                avatarPlaceholder.innerHTML = `<img src="${e.target.result}" class="w-20 h-20 rounded-full object-cover">`;
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+</script>
+{% endblock %}
