@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load humanize %}
 {% block title %}{{ item.title }}{% endblock %}
 
 {% block content %}
@@ -19,76 +20,204 @@
         {{ item.content|safe }}
       </div>
 
+      {% if item.image_url %}
+      <img src="{{ item.image_url }}" class="mt-6 rounded-xl max-h-[500px] w-full object-cover">
+      {% endif %}
+
       <div class="flex items-center justify-between mt-10 pt-6 border-t border-gray-50">
         <a href="{% url 'news_list' %}"
            class="group flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-orange-600 transition-all">
           <span class="transition-transform group-hover:-translate-x-1">←</span> Back to feed
         </a>
 
+        {% if is_authenticated and user_id == item.author_id %}
         <div class="flex gap-4 items-center">
-          <a href="{% url 'news_update' item.id %}"
-             class="px-4 py-1.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+          <a href="{% url 'news_update' pk=item.id %}"
+             class="cursor-pointer px-4 py-1.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
             Edit
           </a>
           <form method="post" action="{% url 'news_delete' item.id %}" onsubmit="return confirm('Delete this post?');">
             {% csrf_token %}
-            <button type="submit" class="px-4 py-1.5 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
+            <button type="submit" class="cursor-pointer px-4 py-1.5 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
               Delete
             </button>
           </form>
         </div>
+        {% endif %}
       </div>
     </div>
   </div>
 
   <div class="mb-6 flex items-center justify-between">
-    <h3 class="text-lg font-bold text-gray-900">Comments <span class="text-gray-400 font-normal">(3)</span></h3>
-    <div class="text-sm font-medium text-gray-500">Sort by: <span class="text-gray-900 cursor-pointer">Best ▾</span></div>
+    <h3 class="text-lg font-bold text-gray-900">
+      Comments <span class="text-gray-400 font-normal">({{ comments_count }})</span>
+    </h3>
   </div>
 
+  {% if is_authenticated %}
   <div class="mb-10">
-    <textarea class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none" rows="3" placeholder="What are your thoughts?"></textarea>
-    <div class="flex justify-end mt-2">
-      <button class="bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition-all shadow-md shadow-orange-200">Comment</button>
-    </div>
+    <form method="POST" action="{% url 'comment_create' item.id %}">
+      {% csrf_token %}
+      <textarea name="content" 
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none" 
+                rows="3" 
+                placeholder="What are your thoughts?"
+                required></textarea>
+      <div class="flex justify-end mt-2">
+        <button type="submit"
+                class="cursor-pointer bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition-all shadow-md shadow-orange-200">
+          Comment
+        </button>
+      </div>
+    </form>
   </div>
+  {% else %}
+  <div class="mb-10 text-center p-6 bg-gray-50 rounded-2xl">
+    <p class="text-gray-600 mb-3">Sign in to join the conversation</p>
+    <a href="{% url 'login' %}" class="inline-block px-6 py-2 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors">
+      Sign In
+    </a>
+  </div>
+  {% endif %}
 
   <div class="space-y-8">
+    {% for comment in comments %}
     <div class="flex gap-4">
+      
       <div class="flex flex-col items-center gap-1">
-        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500"></div>
+        {% if comment.author_avatar %}
+          <img src="{{ comment.author_avatar }}" class="w-8 h-8 rounded-full object-cover">
+        {% else %}
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-xs font-bold">
+            {{ comment.author_username|slice:":1"|upper }}
+          </div>
+        {% endif %}
+        {% if comment.replies %}
         <div class="w-0.5 grow bg-gray-100 rounded-full"></div>
+        {% endif %}
       </div>
+
       <div class="flex-1">
         <div class="flex items-center gap-2 mb-1">
-          <span class="text-sm font-bold text-gray-900">user_pro_99</span>
-          <span class="text-xs text-gray-400">2h ago</span>
+          <span class="text-sm font-bold text-gray-900">{{ comment.author_username }}</span>
+          <span class="text-xs text-gray-400">{{ comment.created_at|timesince }} ago</span>
         </div>
-        <p class="text-gray-700 text-sm leading-relaxed mb-3">This is exactly the kind of update we've been waiting for. The UI feels much snappier now!</p>
+        
+        <p class="text-gray-700 text-sm leading-relaxed mb-3">{{ comment.content }}</p>
+        
         <div class="flex items-center gap-4 text-xs font-bold text-gray-500 uppercase tracking-tight">
-          <button class="hover:text-orange-500 transition-colors">▲ Upvote</button>
-          <button class="hover:text-gray-900 transition-colors">Reply</button>
+          <button onclick="voteComment(this, '{{ comment.id }}', 1)"
+                  class="hover:text-orange-500 transition-colors cursor-pointer">
+            ▲ <span class="comment-votes">{{ comment.votes|default:0 }}</span>
+          </button>
+          <button onclick="toggleReply('{{ comment.id }}')" 
+                  class="hover:text-gray-900 transition-colors cursor-pointer">
+            Reply
+          </button>
         </div>
 
-        <div class="mt-6 flex gap-4">
-          <div class="flex flex-col items-center gap-1">
-            <div class="w-6 h-6 rounded-full bg-blue-400"></div>
-            <div class="w-0.5 grow bg-gray-100 rounded-full"></div>
-          </div>
-          <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-sm font-bold text-gray-900">dev_jane</span>
-              <span class="text-xs text-gray-400">1h ago</span>
+        {% if is_authenticated %}
+        <div id="reply-form-{{ comment.id }}" class="hidden mt-4">
+          <form method="POST" action="{% url 'comment_create' item.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+            <textarea name="content" 
+                      class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none" 
+                      rows="2" 
+                      placeholder="Write a reply..."
+                      required></textarea>
+            <div class="flex justify-end gap-2 mt-2">
+              <button type="button" 
+                      onclick="toggleReply('{{ comment.id }}')"
+                      class="cursor-pointer px-4 py-1.5 text-gray-600 text-xs font-bold hover:bg-gray-100 rounded-lg">
+                Cancel
+              </button>
+              <button type="submit"
+                      class="cursor-pointer px-4 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition-colors">
+                Reply
+              </button>
             </div>
-            <p class="text-gray-700 text-sm leading-relaxed mb-2">Agreed! The spacing makes it much easier to read on mobile.</p>
-            <div class="flex items-center gap-4 text-xs font-bold text-gray-500 uppercase tracking-tight">
-              <button class="hover:text-orange-500 transition-colors">▲ 12</button>
-              <button class="hover:text-gray-900 transition-colors">Reply</button>
-            </div>
-          </div>
+          </form>
         </div>
+        {% endif %}
+
+        {% if comment.replies %}
+        <div class="mt-6 space-y-6">
+          {% for reply in comment.replies %}
+          <div class="flex gap-4">
+            <div class="flex flex-col items-center">
+              {% if reply.author_avatar %}
+                <img src="{{ reply.author_avatar }}" class="w-6 h-6 rounded-full object-cover">
+              {% else %}
+                <div class="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center text-white text-[10px] font-bold">
+                  {{ reply.author_username|slice:":1"|upper }}
+                </div>
+              {% endif %}
+            </div>
+            
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-sm font-bold text-gray-900">{{ reply.author_username }}</span>
+                <span class="text-xs text-gray-400">{{ reply.created_at|timesince }} ago</span>
+              </div>
+              <p class="text-gray-700 text-sm leading-relaxed mb-2">{{ reply.content }}</p>
+              <div class="flex items-center gap-4 text-xs font-bold text-gray-500 uppercase tracking-tight">
+                <button onclick="voteComment(this, '{{ reply.id }}', 1)"
+                        class="hover:text-orange-500 transition-colors cursor-pointer">
+                  ▲ <span class="comment-votes">{{ reply.votes|default:0 }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
       </div>
     </div>
+    {% empty %}
+    <div class="text-center py-12 text-gray-400">
+      <i class="fa-regular fa-comment text-4xl mb-3"></i>
+      <p>No comments yet. Be the first to comment!</p>
+    </div>
+    {% endfor %}
   </div>
+
 </div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie) {
+        document.cookie.split(';').forEach(cookie => {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            }
+        });
+    }
+    return cookieValue;
+}
+
+function toggleReply(commentId) {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    form.classList.toggle('hidden');
+}
+
+async function voteComment(btn, commentId, value) {
+    const res = await fetch(`/news/api/comment/${commentId}/vote/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ value }),
+    });
+    
+    if (res.ok) {
+        const data = await res.json();
+        btn.querySelector('.comment-votes').textContent = data.votes;
+    }
+}
+</script>
 {% endblock %}

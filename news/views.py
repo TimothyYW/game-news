@@ -6,23 +6,22 @@ from .forms import NewsForm
 from core.supabase import get_supabase_client
 from datetime import datetime
 from accounts.decorator import supabase_auth_required
+from core.utils import parse_supabase_data
 
 def news_list(request):
     res = (
         get_supabase_client()
         .table("news")
-        .select("*, profiles(username)")   # ✅ join author username
+        .select("*, profiles(username)")  
         .order("created_at", desc=True)
         .execute()
     )
 
     news = []
     for item in res.data or []:
-        # --- Flatten author ---
         profile = item.pop("profiles", None)
         item["author_username"] = profile["username"] if profile else "Unknown"
 
-        # --- Parse timestamps ---
         for field in ("created_at", "updated_at"):
             raw = item.get(field)
             if raw:
@@ -38,13 +37,61 @@ def news_list(request):
     })
 
 def news_detail(request, pk):
-    res = get_supabase_client().table("news").select("*").eq("id", str(pk)).single().execute()
-
+    client = get_supabase_client()
+    
+    res = client.table("news").select("*, profiles(username, avatar_url)").eq("id", str(pk)).single().execute()
+    
     if not res.data:
         raise Http404("News not found")
-
+    
+    item = res.data
+    profile = item.pop("profiles", None)
+    item["author_username"] = profile["username"] if profile else "Unknown"
+    item["author_avatar"] = profile.get("avatar_url") if profile else None
+    
+    item = parse_supabase_data(item, "created_at", "updated_at")
+    
+    comments_res = (
+        client.table("comments")
+        .select("*, profiles(username, avatar_url)")
+        .eq("news_id", str(pk))
+        .is_("parent_id", "null")
+        .order("votes", desc=True)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    
+    comments = []
+    for comment in (comments_res.data or []):
+        profile = comment.pop("profiles", None)
+        comment["author_username"] = profile["username"] if profile else "Unknown"
+        comment["author_avatar"] = profile.get("avatar_url") if profile else None
+        comment = parse_supabase_data(comment, "created_at", "updated_at")
+        
+        replies_res = (
+            client.table("comments")
+            .select("*, profiles(username, avatar_url)")
+            .eq("parent_id", comment["id"])
+            .order("votes", desc=True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        
+        replies = []
+        for reply in (replies_res.data or []):
+            r_profile = reply.pop("profiles", None)
+            reply["author_username"] = r_profile["username"] if r_profile else "Unknown"
+            reply["author_avatar"] = r_profile.get("avatar_url") if r_profile else None
+            reply = parse_supabase_data(reply, "created_at", "updated_at")
+            replies.append(reply)
+        
+        comment["replies"] = replies
+        comments.append(comment)
+    
     return render(request, "detail.html", {
-        "item": res.data
+        "item": item,
+        "comments": comments,
+        "comments_count": len(comments) + sum(len(c.get("replies", [])) for c in comments),
     })
 
 @supabase_auth_required
@@ -114,26 +161,21 @@ def news_api_create(request):
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    # --- Extract inputs ---
     title       = (request.POST.get("title") or "").strip()
     content     = (request.POST.get("content") or "").strip()
     image       = request.FILES.get("image")
     user_id     = request.session.get("supabase_user_id")
 
-    # --- Auth ---
     if not user_id:
         return JsonResponse({"error": "Unauthorized"}, status=401)
 
-    # --- Validation ---
     if not title:
         return JsonResponse({"error": "Title is required"}, status=400)
     if not content:
         return JsonResponse({"error": "Content is required"}, status=400)
 
-    # --- Supabase client ---
     supabase = get_supabase_client()
 
-    # --- Image upload (optional) ---
     image_url = None
     if image:
         file_ext  = image.name.rsplit(".", 1)[-1].lower()
@@ -148,7 +190,6 @@ def news_api_create(request):
         except Exception as e:
             return JsonResponse({"error": f"Image upload failed: {str(e)}"}, status=500)
 
-    # --- DB insert ---
     try:
         result = supabase.table("news").insert({
             "title":     title,
@@ -167,21 +208,17 @@ def news_api_create(request):
 @supabase_auth_required
 def news_update(request, pk):
     user_id      = request.session.get("supabase_user_id")
-    access_token = request.session.get("supabase_access_token")
     client       = get_supabase_client()
 
-    # --- Fetch existing post ---
     res  = client.table("news").select("*").eq("id", str(pk)).single().execute()
     news = res.data
 
     if not news:
         return JsonResponse({"error": "Not found"}, status=404)
 
-    # --- Ownership check ---
     if news["author_id"] != user_id:
         return JsonResponse({"error": "Forbidden"}, status=403)
 
-    # --- GET: pre-fill form ---
     if request.method == "GET":
         form = NewsForm(initial={
             "title":   news["title"],
@@ -194,7 +231,6 @@ def news_update(request, pk):
             "description": "Update an existing news post.",
         })
 
-    # --- POST: validate and update ---
     if request.method == "POST":
         form = NewsForm(request.POST, request.FILES)
 
@@ -210,8 +246,7 @@ def news_update(request, pk):
         content = form.cleaned_data["content"]
         image   = form.cleaned_data.get("image")
 
-        # --- Handle image ---
-        image_url    = news.get("image_url")   # keep existing by default
+        image_url    = news.get("image_url")   
         remove_image = request.POST.get("remove_image") == "true"
 
         if remove_image:
@@ -235,7 +270,6 @@ def news_update(request, pk):
                     "title": "Edit Post",
                 })
 
-        # --- Update DB ---
         try:
             result = (
                 client.table("news")
@@ -275,7 +309,6 @@ def news_delete(request, pk):
     return redirect("news_list")
 
 
-
 @supabase_auth_required
 def news_vote(request, pk):
     if request.method != "POST":
@@ -295,16 +328,78 @@ def news_vote(request, pk):
         return JsonResponse({"error": "Value must be 1 or -1"}, status=400)
 
     try:
-        # Single atomic DB call — no race conditions
         result = client.rpc("handle_vote", {
             "p_news_id": str(pk),
             "p_user_id": user_id,
             "p_value":   value,
         }).execute()
 
-        new_votes = result.data
+        new_votes = result.data.get("votes") 
 
     except Exception as e:
         return JsonResponse({"error": f"Vote failed: {str(e)}"}, status=500)
 
+    return JsonResponse({"success": True, "votes": new_votes})
+
+
+@supabase_auth_required
+def comment_create(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    user_id      = request.session.get("supabase_user_id")
+    client       = get_supabase_client()
+    
+    content   = (request.POST.get("content") or "").strip()
+    parent_id = request.POST.get("parent_id")
+    
+    if not content:
+        return JsonResponse({"error": "Content is required"}, status=400)
+    
+    # Insert comment
+    try:
+        result = client.table("comments").insert({
+            "news_id":   str(pk),
+            "author_id": user_id,
+            "parent_id": parent_id if parent_id else None,
+            "content":   content,
+        }).execute()
+    except Exception as e:
+        return JsonResponse({"error": f"Failed to post comment: {str(e)}"}, status=500)
+    
+    if not result.data:
+        return JsonResponse({"error": "Comment creation failed"}, status=500)
+    
+    return redirect("news_detail", pk=pk)
+
+
+@supabase_auth_required
+def comment_vote(request, comment_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+    
+    user_id = request.session.get("supabase_user_id")
+    client  = get_supabase_client()
+    
+    import json
+    try:
+        body  = json.loads(request.body)
+        value = body.get("value")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid request body"}, status=400)
+    
+    if value not in (1, -1):
+        return JsonResponse({"error": "Value must be 1 or -1"}, status=400)
+    
+    try:
+        result = client.rpc("handle_comment_vote", {
+            "p_comment_id": str(comment_id),
+            "p_user_id":    user_id,
+            "p_value":      value,
+        }).execute()
+        
+        new_votes = result.data.get("votes")
+    except Exception as e:
+        return JsonResponse({"error": f"Vote failed: {str(e)}"}, status=500)
+    
     return JsonResponse({"success": True, "votes": new_votes})

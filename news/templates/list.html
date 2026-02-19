@@ -60,11 +60,11 @@
     {% for n in news %}
     <div class="group relative bg-white/60 backdrop-blur-sm rounded-2xl border border-gray-100 p-1 transition-all duration-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 flex">
       <div class="w-14 flex flex-col items-center justify-start py-5 border-r border-gray-50/50">
-        <button class="text-gray-300 hover:text-orange-500 transition-colors cursor-pointer">
+        <button class="text-gray-300 hover:text-orange-500 transition-colors cursor-pointer" onclick="vote(this, '{{ n.id }}', 1)">
           <i class="fa-solid fa-chevron-up"></i>
         </button>
         <span class="my-2 font-bold text-xs text-gray-400 vote-count">{{ n.votes|default:0 }}</span>
-        <button class="text-gray-300 hover:text-blue-500 transition-colors cursor-pointer">
+        <button class="text-gray-300 hover:text-blue-500 transition-colors cursor-pointer" onclick="vote(this, '{{ n.id }}', -1)">
           <i class="fa-solid fa-chevron-down"></i>
         </button>
       </div>
