@@ -1,38 +1,70 @@
-# Byte-compiled / optimized / DLL files
+# =========================
+# Python
+# =========================
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.egg-info/
+.eggs/
 
+# =========================
 # Django
+# =========================
 db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
+static/
 *.log
 local_settings.py
 
-# Environments
+# =========================
+# Environment Variables
+# =========================
 .env
+.env.*
+!.env.example
+
+# =========================
+# Virtual Environments
+# =========================
 env/
 venv/
 ENV/
 .venv/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Vercel & Build folders
+# =========================
+# Vercel
+# =========================
 .vercel
+
+# =========================
+# Build / Distribution
+# =========================
 dist/
 build/
+*.manifest
+*.spec
 
-# Test / coverage
+# =========================
+# Testing / Coverage
+# =========================
 .coverage
 htmlcov/
 .pytest_cache/
+.mypy_cache/
 
-# Operating System Files
-.DS_Store
-Thumbs.db
-
-# My Local IDE
+# =========================
+# IDE
+# =========================
 .vscode/
 .idea/
 
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
