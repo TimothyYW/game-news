@@ -77,9 +77,9 @@
             </button>
             <a href="#" class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-[#FF4500] rounded-full flex items-center justify-center text-white text-xl">
-                    <i class="fa-brands fa-reddit-alien"></i>
+                    <img src="{% static 'logo.png' %}" class="w-8 h-8 rounded-full overflow-hidden" />
                 </div>
-                <span class="hidden lg:block text-2xl font-bold tracking-tight">reddit</span>
+                <span class="hidden lg:block text-2xl font-bold tracking-tight">Game News</span>
             </a>
         </div>
 
@@ -91,7 +91,7 @@
                 </div>
                 <input type="text" 
                        class="search-input block w-full p-2 pl-10 text-sm text-gray-900 border border-transparent rounded-full bg-gray-100 hover:bg-white hover:border-blue-500 focus:bg-white placeholder-gray-500 transition-colors" 
-                       placeholder="Search Reddit">
+                       placeholder="Search...">
             </div>
         </div>
 
@@ -112,7 +112,7 @@
             </div>
             <div class="relative" x-data="{ open: false }">
                 <button @click="open = !open" 
-                        class="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-xl transition-colors">
+                        class="flex items-center cursor-pointer gap-2 px-4 py-2 hover:bg-gray-100 rounded-xl transition-colors">
                     {% if profile.avatar_url %}
                         <img src="{{ profile.avatar_url }}" class="w-8 h-8 rounded-full object-cover">
                     {% else %}

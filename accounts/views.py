@@ -65,7 +65,7 @@ def login_view(request):
                 # 🔑 IMPORTANT: store Supabase user UUID for News
                 request.session['supabase_user_id'] = response.user.id
 
-                return redirect("news_list")
+                return redirect("news:news_list")
 
             except Exception as e:
                 print(f"DEBUG Error: {e}")
