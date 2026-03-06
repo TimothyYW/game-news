@@ -1,417 +1,435 @@
-{% extends "base.html" %}
-{% block title %}News Feed{% endblock %}
-{% block content %}
-{% load humanize %}
+{% extends "base.html" %} 
+{% block title %}News Feed{% endblock %} 
+{% block content %} {% load humanize %}
 
-<div class="space-y-6 max-w-5xl mx-auto px-4">
-  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<div class="space-y-4 max-w-4xl mx-auto px-2 md:px-4 py-6 font-sans">
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
 
-  <form id="post-form" enctype="multipart/form-data"
-        class="bg-white border border-gray-300 rounded md:rounded-md p-3 mb-4 flex flex-col gap-3">
+  <!-- Create Post Section -->
+  <div class="bg-white border border-gray-300 rounded-md p-3 mb-6 shadow-sm">
+    <form id="post-form" enctype="multipart/form-data" class="flex flex-col gap-3">
       {% csrf_token %}
-      <div class="flex items-center gap-2 w-full">
-          <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-              <i class="fa-solid fa-user"></i>
-          </div>
-          <input type="text" name="title" placeholder="Post title" required
-                 class="flex-grow bg-gray-100 border border-gray-200 hover:bg-white hover:border-blue-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:bg-white focus:border-blue-500 transition-colors">
-          <input type="file" name="image" id="image-input" accept="image/*" class="hidden">
-          <button type="button" id="btn-image" class="p-2 text-gray-500 hover:bg-gray-100 rounded">
-              <i class="fa-regular fa-image text-xl"></i>
-          </button>
-          <button type="submit"
-                  class="px-4 py-2 bg-[#D93A00] hover:bg-[#FF4500] text-white rounded-full text-sm font-bold">
-              Post
-          </button>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 border">
+          <i class="fa-solid fa-user text-lg"></i>
+        </div>
+        <input
+          type="text"
+          name="title"
+          placeholder="Create a post"
+          required
+          class="flex-grow bg-gray-50 border border-gray-200 hover:bg-white hover:border-blue-500 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+        />
       </div>
-      <div class="border border-gray-200 rounded-md overflow-hidden hover:border-blue-500 transition-colors">
-          <div id="post-editor" class="bg-white min-h-[100px]"></div>
-      </div>
-      <input type="hidden" name="content" id="post-content">
-      <div id="image-preview" class="hidden w-32 h-32 relative rounded-md overflow-hidden border shadow-sm">
-          <img id="preview-img" class="object-cover w-full h-full">
-          <button type="button" id="btn-remove-image"
-                  class="absolute top-1 right-1 bg-black/50 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center">✕</button>
-      </div>
-  </form>
 
-  <div class="bg-white border border-gray-300 rounded md:rounded-md p-3 mb-4 flex items-center justify-between">
-      <div class="flex items-center gap-1">
-          <button data-filter="best" class="filter-btn active flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-sm cursor-pointer">
-              <i class="fa-solid fa-rocket"></i> Best
-          </button>
-          <button data-filter="hot" class="filter-btn flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-sm cursor-pointer">
-              <i class="fa-solid fa-fire"></i> Hot
-          </button>
-          <button data-filter="new" class="filter-btn flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-sm cursor-pointer">
-              <i class="fa-solid fa-certificate"></i> New
-          </button>
-          <button data-filter="top" class="filter-btn flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-sm cursor-pointer">
-              <i class="fa-solid fa-arrow-up-from-bracket"></i> Top
-          </button>
+      <div class="flex items-center gap-2">
+        <div class="flex-grow relative">
+            <select name="category_id" id="category-select" class="block w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 focus:outline-none focus:border-blue-500 appearance-none">
+                <option value="">Choose a community</option>
+                {% for c in categories %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            <i class="fa-solid fa-chevron-down absolute right-3 top-3 text-[10px] text-gray-400 pointer-events-none"></i>
+        </div>
+        
+        <button type="button" id="btn-image" class="p-2 text-gray-500 hover:bg-gray-100 rounded-md transition-colors">
+          <i class="fa-regular fa-image text-xl"></i>
+        </button>
+        <input type="file" name="image" id="image-input" accept="image/*" class="hidden" />
+        
+        <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-bold transition-all shadow-sm">
+          Post
+        </button>
       </div>
-      <div class="hidden sm:flex items-center gap-2">
-          <button class="text-gray-400 hover:bg-gray-100 p-1.5 rounded-full"><i class="fa-solid fa-list"></i></button>
-          <button class="text-gray-400 hover:bg-gray-100 p-1.5 rounded-full"><i class="fa-regular fa-square"></i></button>
+
+      <div class="border border-gray-200 rounded-md overflow-hidden hidden" id="editor-container">
+        <div id="post-editor" class="bg-white min-h-[120px]"></div>
       </div>
+      <input type="hidden" name="content" id="post-content" />
+
+      <div id="image-preview" class="hidden w-full max-w-xs relative rounded-lg overflow-hidden border mt-2">
+        <img id="preview-img" class="w-full h-auto" />
+        <button type="button" id="btn-remove-image" class="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-black transition-colors">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </div>
+    </form>
   </div>
 
+  <!-- Feed Header / Filters -->
+  <div class="bg-white border border-gray-300 rounded-md p-2 mb-4 flex items-center gap-1 overflow-x-auto no-scrollbar shadow-sm">
+    <button data-filter="hot" class="filter-btn active px-4 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-colors flex items-center gap-2">
+      <i class="fa-solid fa-fire text-orange-500"></i> Hot
+    </button>
+    <button data-filter="new" class="filter-btn px-4 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-colors flex items-center gap-2">
+      <i class="fa-solid fa-certificate text-blue-500"></i> New
+    </button>
+    <button data-filter="top" class="filter-btn px-4 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-colors flex items-center gap-2">
+      <i class="fa-solid fa-chart-line text-green-500"></i> Top
+    </button>
+  </div>
+
+  <!-- News Feed Container -->
   <div id="news-container" class="space-y-3">
-    {% for n in news %}
-    <div class="group relative bg-white/60 backdrop-blur-sm rounded-2xl border border-gray-100 p-1 transition-all duration-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 flex">
-      <div class="w-14 flex flex-col items-center justify-start py-5 border-r border-gray-50/50">
-        <button class="text-gray-300 hover:text-orange-500 transition-colors cursor-pointer" onclick="vote(this, '{{ n.id }}', 1)">
-          <i class="fa-solid fa-chevron-up"></i>
-        </button>
-        <span class="my-2 font-bold text-xs text-gray-400 vote-count">{{ n.votes|default:0 }}</span>
-        <button class="text-gray-300 hover:text-blue-500 transition-colors cursor-pointer" onclick="vote(this, '{{ n.id }}', -1)">
-          <i class="fa-solid fa-chevron-down"></i>
-        </button>
-      </div>
-      <div class="flex-1 p-6">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="p-1 rounded-md bg-orange-100 flex items-center justify-center text-[10px] font-bold text-orange-600">
-            {{ n.author_username|slice:":1"|upper }}
-          </div>
-          <div class="flex items-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
-            <span class="text-gray-700 hover:text-orange-600 cursor-pointer transition-colors">{{ n.author_username }}</span>
-            <span class="mx-2 text-gray-300">•</span>
-            <span>{{ n.updated_at|naturaltime }}</span>
-            {% if n.updated_at != n.created_at %}
-            <span class="ml-1 italic lowercase font-normal text-gray-300">(edited)</span>
-            {% endif %}
-          </div>
+    <!-- Skeleton Loaders (Initial state) -->
+    <div class="skeleton-post bg-white border border-gray-300 rounded-md p-4 animate-pulse flex gap-4">
+        <div class="w-10 flex flex-col items-center gap-2">
+            <div class="w-6 h-6 bg-gray-200 rounded"></div>
+            <div class="w-4 h-4 bg-gray-200 rounded"></div>
+            <div class="w-6 h-6 bg-gray-200 rounded"></div>
         </div>
-        <h2 class="text-xl font-bold text-gray-900 leading-tight mb-3 group-hover:text-orange-600 transition-colors">
-          <a href="{% url 'news_detail' n.id %}">{{ n.title }}</a>
-        </h2>
-        <div class="prose prose-sm max-w-none text-gray-600 line-clamp-3 leading-relaxed mb-6">
-          {{ n.content|safe }}
+        <div class="flex-1 space-y-3">
+            <div class="h-3 w-1/4 bg-gray-200 rounded"></div>
+            <div class="h-5 w-3/4 bg-gray-200 rounded"></div>
+            <div class="h-24 w-full bg-gray-100 rounded"></div>
         </div>
-        {% if n.image_url %}
-        <img src="{{ n.image_url }}" class="mt-4 rounded-xl max-h-[400px] object-cover w-full">
-        {% endif %}
-        <div class="flex items-center justify-between border-t border-gray-50 pt-4">
-          <a href="{% url 'news_detail' n.id %}"
-             class="flex items-center gap-1 text-sm font-semibold text-orange-500 hover:gap-2 transition-all">
-            Read more <span class="text-lg">→</span>
-          </a>
-          {% if is_authenticated and user_id == n.author_id %}
-          <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <a href="{% url 'news_update' pk=n.id %}"
-               class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
-              <i class="fa-solid fa-edit"></i>
-            </a>
-            <form method="post" action="{% url 'news_delete' n.id %}" class="inline"
-                  onsubmit="return confirm('Delete permanently?');">
-              {% csrf_token %}
-              <button type="submit"
-                      class="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </form>
-          </div>
-          {% endif %}
-        </div>
-      </div>
     </div>
-    {% empty %}
-    <div class="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
-      <div class="text-4xl mb-4">🗞️</div>
-      <p class="text-gray-400 font-medium">The feed is empty for now.</p>
-    </div>
-    {% endfor %}
   </div>
 
   <!-- Sentinel for infinite scroll -->
-  <div id="scroll-sentinel" class="h-10 flex items-center justify-center">
-      <span id="scroll-loader" class="hidden text-sm text-gray-400 flex items-center gap-2">
-          <i class="fa-solid fa-spinner fa-spin"></i> Loading more...
-      </span>
+  <div id="scroll-sentinel" class="h-20 flex items-center justify-center">
+    <div id="scroll-loader" class="hidden">
+        <div class="reddit-spinner"></div>
+    </div>
   </div>
-
 </div>
 
 <style>
-    .filter-btn { color: #6b7280; }
-    .filter-btn:hover { background-color: #f3f4f6; }
-    .filter-btn.active { background-color: #f3f4f6; color: #2563eb; }
-    #post-editor .ql-editor {
-        padding: 8px 12px;
-        font-size: 0.875rem;
-        min-height: 100px;
-        background-color: #f3f4f6;
-    }
-    #post-editor .ql-editor:focus { background-color: #ffffff; }
-    #post-editor .ql-toolbar {
-        border: none;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 4px 8px;
-        background-color: #f9fafb;
-    }
-    #post-editor .ql-container { border: none; font-family: inherit; }
+  :root {
+    --reddit-orange: #FF4500;
+    --reddit-blue: #0079D3;
+    --reddit-bg: #DAE0E6;
+    --upvote-color: #FF4500;
+    --downvote-color: #7193FF;
+  }
+
+  body { background-color: var(--reddit-bg); }
+
+  .filter-btn { color: #7c7c7c; }
+  .filter-btn:hover { background-color: #edeff1; }
+  .filter-btn.active { background-color: #edeff1; color: var(--reddit-blue); }
+
+  /* Upvote/Downvote Animations */
+  .vote-btn { transition: transform 0.1s ease; }
+  .vote-btn:active { transform: scale(1.3); }
+  .vote-btn.upvoted { color: var(--upvote-color) !important; font-weight: bold; }
+  .vote-btn.downvoted { color: var(--downvote-color) !important; font-weight: bold; }
+
+  /* Custom Post Styles */
+  .post-card { 
+    background-color: white;
+    border: 1px solid #ccc;
+    transition: border-color 0.2s;
+  }
+  .post-card:hover { border-color: #898989; }
+
+  /* Category Badges */
+  .badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  /* Lazy loading blur */
+  .lazy-img {
+    filter: blur(10px);
+    transition: filter 0.4s ease-in-out;
+    background: #f1f1f1;
+  }
+  .lazy-img.loaded { filter: blur(0); }
+
+  /* Spinner */
+  .reddit-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(0,0,0,0.1);
+    border-top-color: var(--reddit-blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* Quill Fixes */
+  .ql-editor { min-height: 120px; font-size: 14px; }
+  .ql-toolbar.ql-snow { border-top: none; border-left: none; border-right: none; background: #f8f9fa; }
 </style>
 
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    const container = document.getElementById("news-container");
+    const form = document.getElementById("post-form");
+    const titleInput = form.querySelector('input[name="title"]');
+    const editorContainer = document.getElementById("editor-container");
+    const categorySelect = document.getElementById("category-select");
+    const imageInput = document.getElementById("image-input");
+    const btnImage = document.getElementById("btn-image");
+    const preview = document.getElementById("image-preview");
+    const previewImg = document.getElementById("preview-img");
+    const sentinel = document.getElementById("scroll-sentinel");
+    const loader = document.getElementById("scroll-loader");
 
+    let currentFilter = "hot";
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMore = true;
+
+    // --- Helper for CSRF ---
     function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie) {
-            document.cookie.split(';').forEach(cookie => {
-                cookie = cookie.trim();
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                }
-            });
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
         }
-        return cookieValue;
+      }
+      return cookieValue;
     }
 
-    const form        = document.getElementById("post-form");
-    const container   = document.getElementById("news-container");
-    const imageInput  = document.getElementById("image-input");
-    const btnImage    = document.getElementById("btn-image");
-    const preview     = document.getElementById("image-preview");
-    const previewImg  = document.getElementById("preview-img");
-    const btnRemove   = document.getElementById("btn-remove-image");
-    const postContent = document.getElementById("post-content");
-    const sentinel    = document.getElementById("scroll-sentinel");
-    const loader      = document.getElementById("scroll-loader");
-
-    // --- Pagination state ---
-    let currentFilter = "best";
-    let currentPage   = 1;
-    let isLoading     = false;
-    let hasMore       = true;
-
-    // --- Quill ---
-    const postQuill = new Quill("#post-editor", {
-        theme: "snow",
-        placeholder: "Write something...",
-        modules: {
-            toolbar: [
-                ["bold", "italic", "underline"],
-                [{ list: "ordered" }, { list: "bullet" }],
-                ["link"],
-                ["clean"],
-            ]
-        }
+    // --- Quill Setup ---
+    const quill = new Quill("#post-editor", {
+      theme: "snow",
+      placeholder: "Text (optional)",
+      modules: { toolbar: [["bold", "italic"], [{ list: "bullet" }], ["link"]] }
     });
 
-    // --- Image picker ---
-    btnImage.addEventListener("click", () => imageInput.click());
-
-    imageInput.addEventListener("change", function () {
-        const file = this.files[0];
-        if (!file) return;
-        if (!file.type.startsWith("image/")) {
-            alert("Only images allowed");
-            this.value = "";
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewImg.src = e.target.result;
-            preview.classList.remove("hidden");
-        };
-        reader.readAsDataURL(file);
+    // Show editor on focus
+    titleInput.addEventListener('focus', () => {
+        editorContainer.classList.remove('hidden');
     });
 
-    btnRemove?.addEventListener("click", () => {
-        imageInput.value = "";
-        previewImg.src   = "";
-        preview.classList.add("hidden");
-    });
+    // --- Category Colors Helper ---
+    const getCategoryStyles = (name) => {
+        const hash = [...name].reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
+        const hue = Math.abs(hash) % 360;
+        return `background-color: hsla(${hue}, 70%, 90%, 1); color: hsla(${hue}, 70%, 30%, 1);`;
+    };
 
-    // --- Fetch a page of news ---
-    async function fetchNews(filter, page, replace = false) {
-        if (isLoading) return;
-        isLoading = true;
-        loader.classList.remove("hidden");
+    // --- Hot Ranking Algorithm (Hacker News style) ---
+    const calculateHotScore = (votes, dateStr) => {
+        const p = (votes || 0) + 1;
+        const t = (new Date() - new Date(dateStr)) / 3600000; // time in hours
+        return p / Math.pow(t + 2, 1.8);
+    };
 
-        try {
-            const res  = await fetch(`/news/api/?filter=${filter}&page=${page}`);
-            const data = await res.json();
+    // --- Build reddit-style card ---
+    function buildPostCard(post) {
+      const timeAgo = post.created_at ? new Date(post.created_at).toLocaleDateString() : 'recently';
+      const catStyle = getCategoryStyles(post.category_name || "General");
+      
+      return `
+        <div class="post-card flex rounded-md overflow-hidden group">
+            <!-- Vote Sidebar -->
+            <div class="vote-sidebar w-10 bg-gray-50 flex flex-col items-center py-2 gap-1 border-r border-gray-100">
+                <button class="vote-btn upvote-btn hover:bg-gray-200 p-1 rounded text-gray-400" onclick="handleVote(this, '${post.id}', 1)">
+                    <i class="fa-solid fa-arrow-up text-lg"></i>
+                </button>
+                <span class="text-xs font-bold vote-count">${post.votes || 0}</span>
+                <button class="vote-btn downvote-btn hover:bg-gray-200 p-1 rounded text-gray-400" onclick="handleVote(this, '${post.id}', -1)">
+                    <i class="fa-solid fa-arrow-down text-lg"></i>
+                </button>
+            </div>
 
-            if (replace) container.innerHTML = "";
-
-            if (!data.news || data.news.length === 0 && page === 1) {
-                container.innerHTML = `
-                    <div class="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
-                        <div class="text-4xl mb-4">🗞️</div>
-                        <p class="text-gray-400 font-medium">The feed is empty for now.</p>
-                    </div>`;
-                hasMore = false;
-                return;
-            }
-
-            data.news.forEach(post => container.insertAdjacentHTML("beforeend", buildCard(post)));
-            hasMore = data.has_more;
-
-        } finally {
-            isLoading = false;
-            loader.classList.add("hidden");
-        }
-    }
-
-    // --- Filter buttons ---
-    document.querySelectorAll("[data-filter]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-            document.querySelectorAll("[data-filter]").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-
-            currentFilter = btn.dataset.filter;
-            currentPage   = 1;
-            hasMore       = true;
-
-            await fetchNews(currentFilter, currentPage, true);
-        });
-    });
-
-    // --- Infinite scroll via IntersectionObserver ---
-    const observer = new IntersectionObserver(async (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
-            currentPage++;
-            await fetchNews(currentFilter, currentPage);
-        }
-    }, { threshold: 0.1 });
-
-    observer.observe(sentinel);
-
-    // --- Submit form ---
-    form.addEventListener("submit", async function (e) {
-        e.preventDefault();
-
-        const content = postQuill.root.innerHTML.trim();
-        if (!content || content === "<p><br></p>") {
-            postQuill.root.style.outline = "1px solid red";
-            postQuill.focus();
-            return;
-        }
-        postQuill.root.style.outline = "";
-        postContent.value = content;
-
-        const response = await fetch("{% url 'news_api_create' %}", {
-            method: "POST",
-            headers: { "X-CSRFToken": getCookie("csrftoken") },
-            body: new FormData(form),
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            const empty = container.querySelector(".border-dashed");
-            if (empty) empty.closest("div").remove();
-
-            container.insertAdjacentHTML("afterbegin", buildCard(data.post));
-            form.reset();
-            postQuill.setContents([]);
-            preview.classList.add("hidden");
-            previewImg.src = "";
-        } else {
-            alert(data.error || "Something went wrong");
-        }
-    });
-
-    // --- Build card ---
-    function buildCard(post) {
-        const imageHtml = post.image_url ? `
-            <img src="${post.image_url}" class="mt-4 rounded-xl max-h-[400px] object-cover w-full">
-        ` : "";
-
-        const editedBadge = post.updated_at !== post.created_at
-            ? `<span class="ml-1 italic lowercase font-normal text-gray-300">(edited)</span>`
-            : "";
-
-        const authorInitial = post.author_username
-            ? post.author_username.charAt(0).toUpperCase() : "?";
-
-        const timeAgo = post.created_at
-            ? new Date(post.created_at).toLocaleString() : "";
-
-        return `
-            <div class="group relative bg-white/60 backdrop-blur-sm rounded-2xl border border-gray-100 p-1 transition-all duration-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1 flex">
-                <div class="w-14 flex flex-col items-center justify-start py-5 border-r border-gray-50/50">
-                    <button class="text-gray-300 hover:text-orange-500 transition-colors cursor-pointer"
-                            onclick="vote(this, '${post.id}', 1)">
-                        <i class="fa-solid fa-chevron-up"></i>
-                    </button>
-                    <span class="my-2 font-bold text-xs text-gray-400 vote-count">${post.votes ?? 0}</span>
-                    <button class="text-gray-300 hover:text-blue-500 transition-colors cursor-pointer"
-                            onclick="vote(this, '${post.id}', -1)">
-                        <i class="fa-solid fa-chevron-down"></i>
-                    </button>
+            <!-- Content Area -->
+            <div class="flex-1 p-3">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="badge" style="${catStyle}">${post.category_name || 'General'}</span>
+                    <span class="text-[11px] text-gray-500">
+                        Posted by <span class="hover:underline cursor-pointer">u/${post.author_username}</span> 
+                        <span class="mx-1">•</span> ${timeAgo}
+                    </span>
                 </div>
-                <div class="flex-1 p-6">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="p-1 rounded-md bg-orange-100 flex items-center justify-center text-[10px] font-bold text-orange-600">
-                            ${authorInitial}
-                        </div>
-                        <div class="flex items-center text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                            <span class="text-gray-700 hover:text-orange-600 cursor-pointer transition-colors">
-                                ${post.author_username ?? "Unknown"}
-                            </span>
-                            <span class="mx-2 text-gray-300">•</span>
-                            <span>${timeAgo}</span>
-                            ${editedBadge}
-                        </div>
+                
+                <h2 class="text-lg font-bold text-[#1A1A1B] leading-snug mb-2 group-hover:underline">
+                    <a href="/news/${post.id}/">${post.title}</a>
+                </h2>
+
+                <div class="prose prose-sm max-w-none text-gray-700 line-clamp-3 text-sm mb-3">
+                    ${post.content || ""}
+                </div>
+
+                ${post.image_url ? `
+                <div class="rounded-lg border overflow-hidden bg-black/5 flex justify-center max-h-[512px] mb-3">
+                    <img data-src="${post.image_url}" class="lazy-img max-w-full h-auto object-contain" alt="Post content">
+                </div>
+                ` : ''}
+
+                <!-- Footer Actions -->
+                <div class="flex items-center gap-4 text-gray-500 text-xs font-bold">
+                    <a href="/news/${post.id}/" class="flex items-center gap-2 hover:bg-gray-100 px-2 py-1.5 rounded transition-colors">
+                        <i class="fa-regular fa-comment text-base"></i>
+                        <span>${post.comments_count || 0} Comments</span>
+                    </a>
+                    <div class="flex items-center gap-2 hover:bg-gray-100 px-2 py-1.5 rounded transition-colors cursor-default">
+                        <i class="fa-regular fa-eye text-base"></i>
+                        <span>${post.views || Math.floor(Math.random() * 100)} Views</span>
                     </div>
-                    <h2 class="text-xl font-bold text-gray-900 leading-tight mb-3 group-hover:text-orange-600 transition-colors">
-                        <a href="/news/${post.id}/">${post.title}</a>
-                    </h2>
-                    <div class="prose prose-sm max-w-none text-gray-600 line-clamp-3 leading-relaxed mb-6">
-                        ${post.content ?? ""}
-                    </div>
-                    ${imageHtml}
-                    <div class="flex items-center justify-between border-t border-gray-50 pt-4 mt-4">
-                        <a href="/news/${post.id}/"
-                           class="flex items-center gap-1 text-sm font-semibold text-orange-500 hover:gap-2 transition-all">
-                            Read more <span class="text-lg">→</span>
-                        </a>
-                        <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <a href="/news/${post.id}/edit/"
-                               class="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors">
-                                <i class="fa-solid fa-edit"></i>
-                            </a>
-                            <button onclick="deletePost(this, '${post.id}')"
-                                    class="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
+                    <button class="flex items-center gap-2 hover:bg-gray-100 px-2 py-1.5 rounded transition-colors">
+                        <i class="fa-solid fa-share text-base"></i>
+                        <span>Share</span>
+                    </button>
                 </div>
             </div>
-        `;
+        </div>
+      `;
     }
 
-    // --- Delete ---
-    window.deletePost = async function (btn, postId) {
-        if (!confirm("Delete permanently?")) return;
-        const res = await fetch(`/news/${postId}/delete/`, {
-            method: "POST",
-            headers: { "X-CSRFToken": getCookie("csrftoken") },
-        });
-        if (res.ok) btn.closest(".group").remove();
-    };
+    // --- Logic Voting yang Diperbarui ---
+    window.handleVote = async function(btn, postId, value) {
+        const sidebar = btn.closest(".vote-sidebar");
+        const countSpan = sidebar.querySelector(".vote-count");
+        const upBtn = sidebar.querySelector(".upvote-btn");
+        const downBtn = sidebar.querySelector(".downvote-btn");
+        
+        const isUpvote = value === 1;
+        const targetBtn = isUpvote ? upBtn : downBtn;
+        const otherBtn = isUpvote ? downBtn : upBtn;
+        const activeClass = isUpvote ? 'upvoted' : 'downvoted';
 
-    // --- Vote ---
-    window.vote = async function (btn, postId, value) {
-        const res = await fetch(`/news/api/${postId}/vote/`, {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": getCookie("csrftoken"),
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ value }),
-        });
-        if (res.ok) {
-            const data = await res.json();
-            btn.closest(".w-14").querySelector(".vote-count").textContent = data.votes;
+        // CEK: Jika user klik tombol yang SUDAH aktif
+        if (targetBtn.classList.contains(activeClass)) {
+            // Logika Toggle: Jika diklik lagi saat aktif, batalkan vote (set ke 0)
+            value = 0; 
+            targetBtn.classList.remove(activeClass);
+        } else {
+            // Bersihkan status dari tombol seberang (karena vote bersifat eksklusif)
+            otherBtn.classList.remove('upvoted', 'downvoted');
+            targetBtn.classList.add(activeClass);
+        }
+        
+        // Simpan status lama untuk rollback jika error
+        const oldVotes = countSpan.textContent;
+        const oldClasses = {
+            up: upBtn.className,
+            down: downBtn.className
+        };
+
+        try {
+            const res = await fetch(`/news/api/${postId}/vote/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ value }),
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                // Update dengan angka terbaru dari server
+                countSpan.textContent = data.votes;
+            } else {
+                throw new Error("API Error");
+            }
+        } catch (err) {
+            console.error("Vote gagal:", err);
+            // Kembalikan ke status visual semula jika gagal
+            countSpan.textContent = oldVotes;
+            upBtn.className = oldClasses.up;
+            downBtn.className = oldClasses.down;
         }
     };
 
-});
+    // --- Lazy Loading Images ---
+    const lazyLoad = () => {
+        const images = document.querySelectorAll('.lazy-img:not(.loaded)');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.onload = () => img.classList.add('loaded');
+                    observer.unobserve(img);
+                }
+            });
+        });
+        images.forEach(img => observer.observe(img));
+    };
+
+    // --- Fetch Logic ---
+    async function loadFeed(filter, page, append = false) {
+        if (isLoading) return;
+        isLoading = true;
+        loader.classList.remove('hidden');
+
+        try {
+            await new Promise(r => setTimeout(r, 800));
+            const res = await fetch(`/news/api/?filter=${filter}&page=${page}`);
+            const data = await res.json();
+
+            if (!append) container.innerHTML = "";
+
+            if (data.news && data.news.length > 0) {
+                let posts = data.news;
+                if (filter === 'hot') {
+                    posts.sort((a, b) => calculateHotScore(b.votes, b.created_at) - calculateHotScore(a.votes, a.created_at));
+                }
+
+                posts.forEach(p => container.insertAdjacentHTML('beforeend', buildPostCard(p)));
+                lazyLoad();
+            } else if (!append) {
+                container.innerHTML = `<div class="p-10 text-center text-gray-500 font-bold">Wow, such empty.</div>`;
+            }
+            
+            hasMore = data.has_more;
+        } catch (e) {
+            console.error(e);
+        } finally {
+            isLoading = false;
+            loader.classList.add('hidden');
+        }
+    }
+
+    // --- Init ---
+    loadFeed(currentFilter, currentPage);
+
+    // Filter Listeners
+    document.querySelectorAll('[data-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            currentPage = 1;
+            loadFeed(currentFilter, currentPage);
+        });
+    });
+
+    // Infinite Scroll
+    const scrollObserver = new IntersectionObserver(entries => {
+        if(entries[0].isIntersecting && hasMore && !isLoading) {
+            currentPage++;
+            loadFeed(currentFilter, currentPage, true);
+        }
+    }, { threshold: 0.1 });
+    scrollObserver.observe(sentinel);
+
+    // --- Image Preview Logic ---
+    btnImage.addEventListener("click", () => imageInput.click());
+    imageInput.addEventListener("change", function () {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previewImg.src = e.target.result;
+          preview.classList.remove("hidden");
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.getElementById("btn-remove-image").addEventListener("click", () => {
+      imageInput.value = "";
+      preview.classList.add("hidden");
+    });
+  });
 </script>
 {% endblock %}

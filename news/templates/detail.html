@@ -3,7 +3,8 @@
 {% block title %}{{ item.title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 pb-20">
+<div class="max-w-3xl mx-auto px-4 pb-20 font-sans">
+  <!-- Article Card -->
   <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-8">
     <div class="p-8">
       <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">
@@ -21,7 +22,7 @@
       </div>
 
       {% if item.image_url %}
-      <img src="{{ item.image_url }}" class="mt-6 rounded-xl max-h-[500px] w-full object-cover">
+      <img src="{{ item.image_url }}" class="mt-6 rounded-xl max-h-[500px] w-full object-cover shadow-sm">
       {% endif %}
 
       <div class="flex items-center justify-between mt-10 pt-6 border-t border-gray-50">
@@ -29,195 +30,196 @@
            class="group flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-orange-600 transition-all">
           <span class="transition-transform group-hover:-translate-x-1">←</span> Back to feed
         </a>
-
-        {% if is_authenticated and user_id == item.author_id %}
-        <div class="flex gap-4 items-center">
-          <a href="{% url 'news_update' pk=item.id %}"
-             class="cursor-pointer px-4 py-1.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
-            Edit
-          </a>
-          <form method="post" action="{% url 'news_delete' item.id %}" onsubmit="return confirm('Delete this post?');">
-            {% csrf_token %}
-            <button type="submit" class="cursor-pointer px-4 py-1.5 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
-              Delete
-            </button>
-          </form>
-        </div>
-        {% endif %}
       </div>
     </div>
   </div>
 
-  <div class="mb-6 flex items-center justify-between">
+  <!-- Comments Header -->
+  <div class="mb-6">
     <h3 class="text-lg font-bold text-gray-900">
       Comments <span class="text-gray-400 font-normal">({{ comments_count }})</span>
     </h3>
   </div>
 
+  <!-- Main Comment Form (Level 0) -->
   {% if is_authenticated %}
   <div class="mb-10">
     <form method="POST" action="{% url 'comment_create' item.id %}">
       {% csrf_token %}
       <textarea name="content" 
-                class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none" 
-                rows="3" 
-                placeholder="What are your thoughts?"
-                required></textarea>
+                class="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none min-h-[100px]" 
+                placeholder="What are your thoughts?" required></textarea>
       <div class="flex justify-end mt-2">
-        <button type="submit"
-                class="cursor-pointer bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition-all shadow-md shadow-orange-200">
+        <button type="submit" class="cursor-pointer bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition-all shadow-md shadow-orange-200">
           Comment
         </button>
       </div>
     </form>
   </div>
-  {% else %}
-  <div class="mb-10 text-center p-6 bg-gray-50 rounded-2xl">
-    <p class="text-gray-600 mb-3">Sign in to join the conversation</p>
-    <a href="{% url 'login' %}" class="inline-block px-6 py-2 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors">
-      Sign In
-    </a>
-  </div>
   {% endif %}
 
+  <!-- Comments List -->
   <div class="space-y-8">
     {% for comment in comments %}
-    <div class="flex gap-4">
-      
-      <div class="flex flex-col items-center gap-1">
-        {% if comment.author_avatar %}
-          <img src="{{ comment.author_avatar }}" class="w-8 h-8 rounded-full object-cover">
-        {% else %}
-          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-xs font-bold">
+    <!-- LEVEL 1 -->
+    <div class="comment-thread" id="comment-{{ comment.id }}">
+      <div class="flex gap-4">
+        <div class="flex flex-col items-center flex-shrink-0">
+          <div class="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
             {{ comment.author_username|slice:":1"|upper }}
           </div>
-        {% endif %}
-        {% if comment.replies %}
-        <div class="w-0.5 grow bg-gray-100 rounded-full"></div>
-        {% endif %}
-      </div>
-
-      <div class="flex-1">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-sm font-bold text-gray-900">{{ comment.author_username }}</span>
-          <span class="text-xs text-gray-400">{{ comment.created_at|timesince }} ago</span>
-        </div>
-        
-        <p class="text-gray-700 text-sm leading-relaxed mb-3">{{ comment.content }}</p>
-        
-        <div class="flex items-center gap-4 text-xs font-bold text-gray-500 uppercase tracking-tight">
-          <button onclick="voteComment(this, '{{ comment.id }}', 1)"
-                  class="hover:text-orange-500 transition-colors cursor-pointer">
-            ▲ <span class="comment-votes">{{ comment.votes|default:0 }}</span>
-          </button>
-          <button onclick="toggleReply('{{ comment.id }}')" 
-                  class="hover:text-gray-900 transition-colors cursor-pointer">
-            Reply
-          </button>
+          <div class="w-0.5 grow bg-gray-100 rounded-full mt-2"></div>
         </div>
 
-        {% if is_authenticated %}
-        <div id="reply-form-{{ comment.id }}" class="hidden mt-4">
-          <form method="POST" action="{% url 'comment_create' item.id %}">
-            {% csrf_token %}
-            <input type="hidden" name="parent_id" value="{{ comment.id }}">
-            <textarea name="content" 
-                      class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none" 
-                      rows="2" 
-                      placeholder="Write a reply..."
-                      required></textarea>
-            <div class="flex justify-end gap-2 mt-2">
-              <button type="button" 
-                      onclick="toggleReply('{{ comment.id }}')"
-                      class="cursor-pointer px-4 py-1.5 text-gray-600 text-xs font-bold hover:bg-gray-100 rounded-lg">
-                Cancel
-              </button>
-              <button type="submit"
-                      class="cursor-pointer px-4 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition-colors">
-                Reply
-              </button>
-            </div>
-          </form>
-        </div>
-        {% endif %}
-
-        {% if comment.replies %}
-        <div class="mt-6 space-y-6">
-          {% for reply in comment.replies %}
-          <div class="flex gap-4">
-            <div class="flex flex-col items-center">
-              {% if reply.author_avatar %}
-                <img src="{{ reply.author_avatar }}" class="w-6 h-6 rounded-full object-cover">
-              {% else %}
-                <div class="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center text-white text-[10px] font-bold">
-                  {{ reply.author_username|slice:":1"|upper }}
-                </div>
-              {% endif %}
-            </div>
-            
-            <div class="flex-1">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-sm font-bold text-gray-900">{{ reply.author_username }}</span>
-                <span class="text-xs text-gray-400">{{ reply.created_at|timesince }} ago</span>
-              </div>
-              <p class="text-gray-700 text-sm leading-relaxed mb-2">{{ reply.content }}</p>
-              <div class="flex items-center gap-4 text-xs font-bold text-gray-500 uppercase tracking-tight">
-                <button onclick="voteComment(this, '{{ reply.id }}', 1)"
-                        class="hover:text-orange-500 transition-colors cursor-pointer">
-                  ▲ <span class="comment-votes">{{ reply.votes|default:0 }}</span>
-                </button>
-              </div>
-            </div>
+        <div class="flex-1 pb-4">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-sm font-bold text-gray-900">u/{{ comment.author_username }}</span>
+            <span class="text-[11px] text-gray-400 font-medium">• {{ comment.created_at|timesince }} ago</span>
           </div>
-          {% endfor %}
-        </div>
-        {% endif %}
+          <p class="text-gray-700 text-sm mb-3">{{ comment.content }}</p>
+          
+          <div class="flex items-center gap-4 text-[11px] font-bold text-gray-400 uppercase">
+            <button onclick="handleCommentVote(this, '{{ comment.id }}', 1)" class="hover:text-orange-500 cursor-pointer">
+              <i class="fa-solid fa-arrow-up"></i> <span class="comment-votes text-gray-600 ml-1">{{ comment.votes|default:0 }}</span>
+            </button>
+            <button onclick="handleCommentVote(this, '{{ comment.id }}', -1)" class="hover:text-blue-500 cursor-pointer">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            <button onclick="toggleReply('{{ comment.id }}')" class="hover:text-gray-900 cursor-pointer">Reply</button>
+          </div>
 
+          <div id="reply-form-{{ comment.id }}" class="hidden mt-4 animate-in">
+             <form method="POST" action="{% url 'comment_create' item.id %}" class="bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+               {% csrf_token %}
+               <input type="hidden" name="parent_id" value="{{ comment.id }}">
+               <textarea name="content" class="w-full bg-gray-50 border-none p-3 text-sm focus:ring-0 outline-none resize-none" rows="2" placeholder="Reply to u/{{ comment.author_username }}..."></textarea>
+               <div class="flex justify-end gap-2 p-2">
+                 <button type="button" onclick="toggleReply('{{ comment.id }}')" class="text-xs font-bold text-gray-500 px-3 py-1">CANCEL</button>
+                 <button type="submit" class="bg-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg">REPLY</button>
+               </div>
+             </form>
+          </div>
+
+          <!-- LEVEL 2 -->
+          {% if comment.replies %}
+          <div class="mt-6 space-y-6 border-l-2 border-gray-100 pl-6">
+            {% for reply in comment.replies %}
+            <div id="comment-{{ reply.id }}">
+              <div class="flex gap-3">
+                <div class="flex flex-col items-center flex-shrink-0">
+                  <div class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
+                    {{ reply.author_username|slice:":1"|upper }}
+                  </div>
+                  <div class="w-0.5 grow bg-gray-100 rounded-full mt-1"></div>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-bold text-gray-900">u/{{ reply.author_username }}</span>
+                    <span class="text-[10px] text-gray-400 font-medium">• {{ reply.created_at|timesince }} ago</span>
+                  </div>
+                  <p class="text-gray-700 text-sm mb-2">{{ reply.content }}</p>
+                  
+                  <div class="flex items-center gap-4 text-[10px] font-bold text-gray-400 uppercase">
+                    <button onclick="handleCommentVote(this, '{{ reply.id }}', 1)" class="hover:text-orange-500 cursor-pointer">
+                      <i class="fa-solid fa-arrow-up"></i> <span class="comment-votes text-gray-600 ml-1">{{ reply.votes|default:0 }}</span>
+                    </button>
+                    <button onclick="handleCommentVote(this, '{{ reply.id }}', -1)" class="hover:text-blue-500 cursor-pointer">
+                      <i class="fa-solid fa-arrow-down"></i>
+                    </button>
+                    <button onclick="toggleReply('{{ reply.id }}')" class="hover:text-gray-900 cursor-pointer">Reply</button>
+                  </div>
+
+                  <div id="reply-form-{{ reply.id }}" class="hidden mt-3 animate-in">
+                    <form method="POST" action="{% url 'comment_create' item.id %}" class="bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+                      {% csrf_token %}
+                      <input type="hidden" name="parent_id" value="{{ reply.id }}">
+                      <textarea name="content" class="w-full bg-gray-50 border-none p-3 text-sm focus:ring-0 outline-none resize-none" rows="2" placeholder="Reply to u/{{ reply.author_username }}..."></textarea>
+                      <div class="flex justify-end gap-2 p-2">
+                        <button type="button" onclick="toggleReply('{{ reply.id }}')" class="text-xs font-bold text-gray-500 px-3 py-1">CANCEL</button>
+                        <button type="submit" class="bg-orange-500 text-white text-xs font-bold px-4 py-1.5 rounded-lg">REPLY</button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <!-- LEVEL 3 -->
+                  {% if reply.replies %}
+                  <div class="mt-4 space-y-4 border-l-2 border-gray-100 pl-4">
+                    {% for sub_reply in reply.replies %}
+                    <div class="flex gap-2" id="comment-{{ sub_reply.id }}">
+                      <div class="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0">
+                        {{ sub_reply.author_username|slice:":1"|upper }}
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-0.5">
+                          <span class="text-xs font-bold text-gray-900">u/{{ sub_reply.author_username }}</span>
+                          <span class="text-[9px] text-gray-400 font-medium">• {{ sub_reply.created_at|timesince }} ago</span>
+                        </div>
+                        <p class="text-gray-700 text-xs leading-relaxed mb-1">{{ sub_reply.content }}</p>
+                        <div class="flex items-center gap-3 text-[9px] font-bold text-gray-400 uppercase">
+                          <button onclick="handleCommentVote(this, '{{ sub_reply.id }}', 1)" class="hover:text-orange-500 cursor-pointer">
+                            <i class="fa-solid fa-arrow-up"></i> <span class="comment-votes text-gray-600 ml-1">{{ sub_reply.votes|default:0 }}</span>
+                          </button>
+                          <button onclick="handleCommentVote(this, '{{ sub_reply.id }}', -1)" class="hover:text-blue-500 cursor-pointer">
+                            <i class="fa-solid fa-arrow-down"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
       </div>
-    </div>
-    {% empty %}
-    <div class="text-center py-12 text-gray-400">
-      <i class="fa-regular fa-comment text-4xl mb-3"></i>
-      <p>No comments yet. Be the first to comment!</p>
     </div>
     {% endfor %}
   </div>
-
 </div>
+
+<style>
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-in { animation: slideIn 0.2s ease-out; }
+    .comment-vote-btn.active-up { color: #FF4500 !important; }
+    .comment-vote-btn.active-down { color: #7193FF !important; }
+</style>
 
 <script>
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie) {
-        document.cookie.split(';').forEach(cookie => {
-            cookie = cookie.trim();
-            if (cookie.startsWith(name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            }
+        document.cookie.split(';').forEach(c => {
+            c = c.trim(); if (c.startsWith(name + '=')) cookieValue = decodeURIComponent(c.substring(name.length + 1));
         });
     }
     return cookieValue;
 }
 
-function toggleReply(commentId) {
-    const form = document.getElementById(`reply-form-${commentId}`);
-    form.classList.toggle('hidden');
+function toggleReply(id) {
+    const el = document.getElementById(`reply-form-${id}`);
+    if (el) {
+        el.classList.toggle('hidden');
+        if (!el.classList.contains('hidden')) el.querySelector('textarea').focus();
+    }
 }
 
-async function voteComment(btn, commentId, value) {
-    const res = await fetch(`/news/api/comment/${commentId}/vote/`, {
-        method: "POST",
-        headers: {
-            "X-CSRFToken": getCookie("csrftoken"),
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ value }),
-    });
-    
-    if (res.ok) {
-        const data = await res.json();
-        btn.querySelector('.comment-votes').textContent = data.votes;
-    }
+async function handleCommentVote(btn, id, val) {
+    const countSpan = btn.parentElement.querySelector('.comment-votes');
+    try {
+        const res = await fetch(`/news/api/comment/${id}/vote/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": getCookie("csrftoken"), "Content-Type": "application/json" },
+            body: JSON.stringify({ value: val }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (countSpan) countSpan.textContent = data.votes;
+        }
+    } catch (e) { console.error(e); }
 }
 </script>
 {% endblock %}

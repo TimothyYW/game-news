@@ -64,6 +64,19 @@
       #editor .ql-editor {
           padding: 16px 0px !important;
       }
+
+    .select-wrapper select {
+        -webkit-appearance: none; /* for Chrome and Safari */
+        -moz-appearance: none;    /* for Firefox */
+        appearance: none;         /* standard property */
+        /* Add padding to prevent text from overlapping your custom icon later */
+        padding-right: 30px; 
+    }
+
+    /* For older IE versions */
+    .select-wrapper select::-ms-expand {
+        display: none;
+    }
     </style>
 </head>
 

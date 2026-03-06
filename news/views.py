@@ -16,6 +16,8 @@ def news_list(request):
         .order("created_at", desc=True)
         .execute()
     )
+    
+    categories = get_supabase_client().table("categories").select("*").execute()
 
     news = []
     for item in res.data or []:
@@ -34,23 +36,59 @@ def news_list(request):
         "title":       "Web Game News",
         "description": "Browse the latest news posts.",
         "news":        news,
+        "categories": categories.data
     })
 
 def news_detail(request, pk):
     client = get_supabase_client()
-    
-    res = client.table("news").select("*, profiles(username, avatar_url)").eq("id", str(pk)).single().execute()
-    
+
+    res = (
+        client.table("news")
+        .select("*, profiles(username, avatar_url)")
+        .eq("id", str(pk))
+        .single()
+        .execute()
+    )
+
     if not res.data:
         raise Http404("News not found")
-    
+
     item = res.data
     profile = item.pop("profiles", None)
+
     item["author_username"] = profile["username"] if profile else "Unknown"
     item["author_avatar"] = profile.get("avatar_url") if profile else None
-    
     item = parse_supabase_data(item, "created_at", "updated_at")
-    
+
+    def fetch_replies(parent_id, depth=1, max_depth=3):
+        if depth > max_depth:
+            return []
+
+        replies_res = (
+            client.table("comments")
+            .select("*, profiles(username, avatar_url)")
+            .eq("parent_id", parent_id)
+            .order("votes", desc=True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        replies = []
+        for reply in (replies_res.data or []):
+            r_profile = reply.pop("profiles", None)
+
+            reply["author_username"] = r_profile["username"] if r_profile else "Unknown"
+            reply["author_avatar"] = r_profile.get("avatar_url") if r_profile else None
+
+            reply = parse_supabase_data(reply, "created_at", "updated_at")
+
+            # recursively fetch deeper replies
+            reply["replies"] = fetch_replies(reply["id"], depth + 1, max_depth)
+
+            replies.append(reply)
+
+        return replies
+
     comments_res = (
         client.table("comments")
         .select("*, profiles(username, avatar_url)")
@@ -60,39 +98,37 @@ def news_detail(request, pk):
         .order("created_at", desc=True)
         .execute()
     )
-    
+
     comments = []
+
     for comment in (comments_res.data or []):
         profile = comment.pop("profiles", None)
+
         comment["author_username"] = profile["username"] if profile else "Unknown"
         comment["author_avatar"] = profile.get("avatar_url") if profile else None
+
         comment = parse_supabase_data(comment, "created_at", "updated_at")
-        
-        replies_res = (
-            client.table("comments")
-            .select("*, profiles(username, avatar_url)")
-            .eq("parent_id", comment["id"])
-            .order("votes", desc=True)
-            .order("created_at", desc=True)
-            .execute()
-        )
-        
-        replies = []
-        for reply in (replies_res.data or []):
-            r_profile = reply.pop("profiles", None)
-            reply["author_username"] = r_profile["username"] if r_profile else "Unknown"
-            reply["author_avatar"] = r_profile.get("avatar_url") if r_profile else None
-            reply = parse_supabase_data(reply, "created_at", "updated_at")
-            replies.append(reply)
-        
-        comment["replies"] = replies
+
+        comment["replies"] = fetch_replies(comment["id"], depth=2)
+
         comments.append(comment)
-    
-    return render(request, "detail.html", {
-        "item": item,
-        "comments": comments,
-        "comments_count": len(comments) + sum(len(c.get("replies", [])) for c in comments),
-    })
+
+    def count_comments(nodes):
+        total = 0
+        for n in nodes:
+            total += 1
+            total += count_comments(n.get("replies", []))
+        return total
+
+    return render(
+        request,
+        "detail.html",
+        {
+            "item": item,
+            "comments": comments,
+            "comments_count": count_comments(comments),
+        },
+    )
 
 @supabase_auth_required
 def news_create(request):
@@ -162,6 +198,7 @@ def news_api_create(request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
     title       = (request.POST.get("title") or "").strip()
+    category_id = request.POST.get("category_id")
     content     = (request.POST.get("content") or "").strip()
     image       = request.FILES.get("image")
     user_id     = request.session.get("supabase_user_id")
@@ -195,6 +232,7 @@ def news_api_create(request):
             "title":     title,
             "content":   content,
             "author_id": user_id,
+            "category_id": category_id,
             "image_url": image_url,
         }).execute()
     except Exception as e:
@@ -212,6 +250,7 @@ def news_update(request, pk):
 
     res  = client.table("news").select("*").eq("id", str(pk)).single().execute()
     news = res.data
+    categories = client.table("categories").select("*").execute()
 
     if not news:
         return JsonResponse({"error": "Not found"}, status=404)
@@ -297,7 +336,9 @@ def news_update(request, pk):
                 "title": "Edit Post",
             })
 
-        return redirect("news_list")
+        return render(request, "news/list.html", {
+            "categories": categories.data
+        })
 
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
@@ -346,30 +387,50 @@ def news_vote(request, pk):
 def comment_create(request, pk):
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
-    
-    user_id      = request.session.get("supabase_user_id")
-    client       = get_supabase_client()
-    
-    content   = (request.POST.get("content") or "").strip()
+
+    user_id = request.session.get("supabase_user_id")
+    client = get_supabase_client()
+
+    content = (request.POST.get("content") or "").strip()
     parent_id = request.POST.get("parent_id")
-    
+
     if not content:
         return JsonResponse({"error": "Content is required"}, status=400)
-    
-    # Insert comment
+
     try:
+        depth = 1
+
+        if parent_id:
+            parent = client.table("comments") \
+                .select("id,parent_id") \
+                .eq("id", parent_id) \
+                .single() \
+                .execute()
+
+            if parent.data:
+                if parent.data["parent_id"]:
+                    # parent is level 2 → this would be level 3
+                    depth = 3
+                else:
+                    # parent is root → this is level 2
+                    depth = 2
+
+        if depth > 3:
+            return JsonResponse({"error": "Maximum reply depth reached"}, status=400)
+
         result = client.table("comments").insert({
-            "news_id":   str(pk),
+            "news_id": str(pk),
             "author_id": user_id,
             "parent_id": parent_id if parent_id else None,
-            "content":   content,
+            "content": content,
         }).execute()
+
     except Exception as e:
         return JsonResponse({"error": f"Failed to post comment: {str(e)}"}, status=500)
-    
+
     if not result.data:
         return JsonResponse({"error": "Comment creation failed"}, status=500)
-    
+
     return redirect("news_detail", pk=pk)
 
 
